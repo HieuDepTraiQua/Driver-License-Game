@@ -585,7 +585,7 @@
       const obstacle = {
         x: rand(roadLeft + 48, roadRight - 48),
         y: -90,
-        width: isFatal ? 108 : 90,
+        width: isFatal ? 116 : 112,
         height: isFatal ? 52 : 48,
         speed: rand(170, 235) + state.elapsed * 1.35,
         fatal: isFatal,
@@ -945,10 +945,8 @@
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = obstacle.fatal ? "#fee2e2" : "#1f2937";
-      ctx.font = obstacle.fatal ? `800 20px ${UI_FONT}` : `800 17px ${UI_FONT}`;
-      ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(obstacle.label, 0, 0);
+      drawFittedText(obstacle.label, 0, 2, obstacle.width - 16, obstacle.fatal ? 19 : 16, 800, "center");
       ctx.restore();
     }
 
