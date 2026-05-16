@@ -560,6 +560,8 @@
         ? `CHÚC ${state.playerName.toUpperCase()} THI TỐT, VỮNG TAY LÁI, MANG BẰNG VỀ NHÀ!`
         : reason === "Chưa hoàn thành đủ 11 bài sa hình"
           ? `Hết giờ rồi! Bạn mới hoàn thành ${state.examCollected}/11 bài sa hình. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!`
+          : reason === "Dính lỗi Tụt dốc"
+            ? "Dính lỗi loại trực tiếp rồi! Tụt dốc là giám khảo bấm dừng ngay tại chỗ. Bình tĩnh, đóng tiền thi lại, lần sau giữ chân phanh chắc hơn nha!"
           : "Tạch mất rồi! Điểm số dưới 80. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!";
       syncNameOverlay();
       playResultJingle(win);
