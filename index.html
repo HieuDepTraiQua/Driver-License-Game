@@ -31,7 +31,7 @@
         radial-gradient(circle at top left, #fff6a8 0 12%, transparent 35%),
         linear-gradient(180deg, #8fe7ff 0%, #d7f8ff 48%, #9be67d 100%);
       color: var(--ink);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Arial, Tahoma, "Segoe UI", sans-serif;
       touch-action: none;
       user-select: none;
     }
@@ -111,7 +111,7 @@
       padding: 0 16px;
       background: #fffbeb;
       color: #172033;
-      font: 900 21px system-ui, sans-serif;
+      font: 800 21px Arial, Tahoma, sans-serif;
       text-align: center;
       user-select: text;
       touch-action: manipulation;
@@ -218,7 +218,7 @@
       <section class="name-overlay" id="nameOverlay" aria-label="Nhập tên trước khi thi">
         <form class="name-panel" id="nameForm">
           <h2>CHƠI ĐỂ ĐỖ SÁT HẠCH</h2>
-          <p>Hãy cho tôi biết tôi phải in bằng lái xe tên của ai...</p>
+          <p>Nhập tên, ăn đủ 11 điểm vàng sa hình trong 60 giây để về đích.</p>
           <input id="nameInput" type="text" maxlength="24" autocomplete="name" placeholder="Tên bạn của bạn" required />
           <div class="name-error" id="nameError" aria-live="polite"></div>
           <button class="start-btn" type="submit">THI NÀO</button>
@@ -240,9 +240,23 @@
     */
 
     const DEFAULT_FRIEND_NAME = "BẠN ƠI";
-    const EXAM_DURATION = 45;
+    const EXAM_DURATION = 60;
     const MAX_SCORE = 100;
     const PASS_SCORE = 80;
+    const UI_FONT = 'Arial, Tahoma, "Segoe UI", sans-serif';
+    const EXAM_COURSES = [
+      "Xuất phát",
+      "Dừng xe nhường đường cho người đi bộ",
+      "Dừng xe và khởi hành ngang dốc",
+      "Qua vệt bánh xe và đường hẹp vuông góc",
+      "Qua ngã tư có đèn tín hiệu giao thông",
+      "Đường vòng quanh co",
+      "Ghép xe dọc vào nơi đỗ",
+      "Dừng xe nơi có đường sắt cắt ngang",
+      "Thay đổi tốc độ khi lái xe",
+      "Ghép xe ngang vào nơi đỗ",
+      "Kết thúc",
+    ];
 
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
@@ -265,12 +279,15 @@
       distance: 0,
       spawnTimer: 0,
       itemSpawnTimer: 1.8,
+      examSpawnTimer: 1,
+      examCollected: 0,
       flash: 0,
       shake: 0,
       modalShake: 0,
       lastTime: 0,
       obstacles: [],
       goodies: [],
+      examTokens: [],
       particles: [],
       roadMarks: [],
       resultReason: "",
@@ -307,6 +324,21 @@
       return Math.random() * (max - min) + min;
     }
 
+    function shortenText(text, maxChars) {
+      return text.length > maxChars ? `${text.slice(0, maxChars - 1)}...` : text;
+    }
+
+    function drawFittedText(text, x, y, maxWidth, fontSize, weight = 800, align = "left") {
+      let size = fontSize;
+      ctx.textAlign = align;
+      do {
+        ctx.font = `${weight} ${size}px ${UI_FONT}`;
+        if (ctx.measureText(text).width <= maxWidth || size <= 10) break;
+        size -= 1;
+      } while (size > 10);
+      ctx.fillText(text, x, y);
+    }
+
     function resetGame() {
       state.screen = "playing";
       state.score = MAX_SCORE;
@@ -315,11 +347,14 @@
       state.distance = 0;
       state.spawnTimer = 0.95;
       state.itemSpawnTimer = 1.35;
+      state.examSpawnTimer = 0.45;
+      state.examCollected = 0;
       state.flash = 0;
       state.shake = 0;
       state.modalShake = 0;
       state.obstacles = [];
       state.goodies = [];
+      state.examTokens = [];
       state.particles = [];
       state.resultReason = "";
       state.finalMessage = "";
@@ -335,6 +370,9 @@
       state.elapsed = 0;
       state.obstacles = [];
       state.goodies = [];
+      state.examTokens = [];
+      state.examSpawnTimer = 0.45;
+      state.examCollected = 0;
       state.particles = [];
       state.finalMessage = "";
       input.left = false;
@@ -372,7 +410,9 @@
       state.modalShake = 0.85;
       state.finalMessage = win
         ? `CHÚC ${state.playerName.toUpperCase()} THI TỐT, VỮNG TAY LÁI, MANG BẰNG VỀ NHÀ!`
-        : "Tạch mất rồi! Điểm số dưới 80. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!";
+        : reason === "Chưa hoàn thành đủ 11 bài sa hình"
+          ? `Hết giờ rồi! Bạn mới hoàn thành ${state.examCollected}/11 bài sa hình. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!`
+          : "Tạch mất rồi! Điểm số dưới 80. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!";
       syncNameOverlay();
 
       if (win) {
@@ -420,6 +460,22 @@
       });
     }
 
+    // Tạo điểm vàng bắt buộc, đại diện cho từng bài thi sa hình.
+    function spawnExamToken() {
+      if (state.examCollected >= EXAM_COURSES.length || state.examTokens.length > 0) return;
+
+      const roadLeft = W * 0.18;
+      const roadRight = W * 0.82;
+      state.examTokens.push({
+        x: rand(roadLeft + 58, roadRight - 58),
+        y: -88,
+        radius: 42,
+        speed: rand(265, 330),
+        index: state.examCollected,
+        label: EXAM_COURSES[state.examCollected],
+      });
+    }
+
     function rectsOverlap(a, b) {
       return (
         a.x - a.width / 2 < b.x + b.width / 2 &&
@@ -463,6 +519,23 @@
       }
     }
 
+    function collectExamToken(token) {
+      state.examCollected = Math.max(state.examCollected, token.index + 1);
+      state.examSpawnTimer = 0.45;
+
+      for (let i = 0; i < 26; i++) {
+        state.particles.push({
+          x: token.x + rand(-18, 18),
+          y: token.y + rand(-18, 18),
+          vx: rand(-120, 120),
+          vy: rand(-210, -70),
+          life: rand(0.55, 0.95),
+          color: Math.random() < 0.5 ? "#facc15" : "#ffffff",
+          size: rand(3, 7),
+        });
+      }
+    }
+
     function update(dt) {
       if (state.screen !== "playing") {
         state.modalShake = Math.max(0, state.modalShake - dt);
@@ -491,6 +564,12 @@
       if (state.itemSpawnTimer <= 0) {
         spawnGoodie();
         state.itemSpawnTimer = rand(2.2, 3.4);
+      }
+
+      state.examSpawnTimer -= dt;
+      if (state.examSpawnTimer <= 0) {
+        spawnExamToken();
+        state.examSpawnTimer = rand(1.1, 1.6);
       }
 
       for (const mark of state.roadMarks) {
@@ -523,12 +602,30 @@
         }
       }
 
+      for (let i = state.examTokens.length - 1; i >= 0; i--) {
+        const token = state.examTokens[i];
+        token.y += token.speed * dt;
+        if (circleRectOverlap(token, carRect)) {
+          collectExamToken(token);
+          state.examTokens.splice(i, 1);
+        } else if (token.y > H + 110) {
+          state.examTokens.splice(i, 1);
+          state.examSpawnTimer = Math.min(state.examSpawnTimer, 0.45);
+        }
+      }
+
       state.obstacles = state.obstacles.filter((o) => o.y < H + 120);
       state.goodies = state.goodies.filter((g) => g.y < H + 100);
       updateParticles(dt);
 
-      if (state.timeLeft <= 0 && state.score >= PASS_SCORE) {
-        endGame(true, "Hoàn thành 45 giây sát hạch");
+      if (state.examCollected >= EXAM_COURSES.length && state.score >= PASS_SCORE) {
+        endGame(true, "Hoàn thành đủ 11 bài sa hình");
+      } else if (state.timeLeft <= 0) {
+        if (state.score >= PASS_SCORE && state.examCollected >= EXAM_COURSES.length) {
+          endGame(true, "Hoàn thành 60 giây sát hạch");
+        } else {
+          endGame(false, "Chưa hoàn thành đủ 11 bài sa hình");
+        }
       }
     }
 
@@ -612,27 +709,29 @@
       }
 
       ctx.fillStyle = "rgba(255,255,255,0.7)";
-      ctx.font = "900 30px system-ui";
+      ctx.font = `800 30px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.fillText("SÂN SÁT HẠCH", W / 2, 54);
     }
 
     function drawHud() {
       const scoreShake = state.shake > 0 ? Math.sin(performance.now() / 26) * 5 : 0;
+      const nextCourse = EXAM_COURSES[state.examCollected] || "Đủ 11 bài, về đích!";
+      const remaining = EXAM_COURSES.length - state.examCollected;
 
       ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
       ctx.shadowColor = "rgba(0,0,0,0.18)";
       ctx.shadowBlur = 14;
-      drawRoundedRect(18, 18, W - 36, 84, 18);
+      drawRoundedRect(18, 18, W - 36, 150, 18);
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = state.score < PASS_SCORE ? "#ef4444" : "#172033";
-      ctx.font = "900 34px system-ui";
+      ctx.font = `800 34px ${UI_FONT}`;
       ctx.textAlign = "left";
       ctx.fillText(`ĐIỂM: ${state.score}`, 36 + scoreShake, 72);
 
       ctx.fillStyle = "#2563eb";
-      ctx.font = "900 24px system-ui";
+      ctx.font = `800 24px ${UI_FONT}`;
       ctx.textAlign = "right";
       ctx.fillText(`${Math.ceil(state.timeLeft)}s`, W - 36, 69);
 
@@ -640,6 +739,24 @@
       drawRoundedRect(36, 82, W - 72, 10, 8);
       ctx.fillStyle = state.timeLeft < 10 ? "#ef4444" : "#22c55e";
       drawRoundedRect(36, 82, (W - 72) * (state.timeLeft / EXAM_DURATION), 10, 8);
+
+      ctx.fillStyle = "#172033";
+      drawFittedText(`SA HÌNH: ${state.examCollected}/11`, 36, 115, 200, 17, 800, "left");
+
+      ctx.fillStyle = remaining <= 0 ? "#16a34a" : "#f59e0b";
+      drawFittedText(remaining <= 0 ? "ĐỦ BÀI" : `CÒN ${remaining} BÀI`, W - 36, 115, 145, 17, 800, "right");
+
+      ctx.fillStyle = "#475569";
+      drawFittedText(`Tiếp: ${shortenText(nextCourse, 46)}`, 36, 138, W - 72, 14, 700, "left");
+
+      const dotSpacing = 15;
+      const dotStart = W / 2 - ((EXAM_COURSES.length - 1) * dotSpacing) / 2;
+      for (let i = 0; i < EXAM_COURSES.length; i++) {
+        ctx.fillStyle = i < state.examCollected ? "#facc15" : "#cbd5e1";
+        ctx.beginPath();
+        ctx.arc(dotStart + i * dotSpacing, 154, 4.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     function drawCar() {
@@ -667,7 +784,7 @@
       ctx.fillRect(-24, -57, 14, 8);
       ctx.fillRect(10, -57, 14, 8);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "900 16px system-ui";
+      ctx.font = `800 16px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.fillText("THI", 0, 54);
       ctx.restore();
@@ -683,7 +800,7 @@
       ctx.shadowBlur = 0;
 
       ctx.fillStyle = obstacle.fatal ? "#fee2e2" : "#1f2937";
-      ctx.font = obstacle.fatal ? "900 20px system-ui" : "900 17px system-ui";
+      ctx.font = obstacle.fatal ? `800 20px ${UI_FONT}` : `800 17px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(obstacle.label, 0, 0);
@@ -693,21 +810,69 @@
     function drawGoodie(goodie) {
       ctx.save();
       ctx.translate(goodie.x, goodie.y);
-      ctx.fillStyle = "#16a34a";
       ctx.shadowColor = "rgba(34,197,94,0.55)";
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 16;
+
+      ctx.fillStyle = "#22c55e";
+      drawCloverLeaf(0, -14, 0);
+      drawCloverLeaf(14, 0, Math.PI / 2);
+      drawCloverLeaf(0, 14, Math.PI);
+      drawCloverLeaf(-14, 0, -Math.PI / 2);
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = "#15803d";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.arc(0, 0, goodie.radius, 0, Math.PI * 2);
+      ctx.moveTo(5, 18);
+      ctx.quadraticCurveTo(14, 31, 22, 37);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `800 16px ${UI_FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`+${goodie.value}`, 0, 1);
+      ctx.restore();
+    }
+
+    function drawCloverLeaf(x, y, rotation) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.beginPath();
+      ctx.moveTo(0, 13);
+      ctx.bezierCurveTo(-22, 1, -17, -24, 0, -14);
+      ctx.bezierCurveTo(17, -24, 22, 1, 0, 13);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawExamToken(token) {
+      ctx.save();
+      ctx.translate(token.x, token.y);
+
+      ctx.fillStyle = "#facc15";
+      ctx.shadowColor = "rgba(250, 204, 21, 0.7)";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(0, 0, token.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "900 15px system-ui";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, token.radius - 3, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = "#172033";
+      ctx.font = `800 18px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      wrapText(goodie.label, 0, -5, 68, 16);
-      ctx.font = "900 14px system-ui";
-      ctx.fillText(`+${goodie.value}`, 0, 20);
+      ctx.fillText(`${token.index + 1}`, 0, -8);
+      ctx.font = `800 11px ${UI_FONT}`;
+      ctx.fillText("SA HÌNH", 0, 13);
       ctx.restore();
     }
 
@@ -757,17 +922,17 @@
 
       ctx.fillStyle = "#172033";
       ctx.textAlign = "center";
-      ctx.font = "900 41px system-ui";
+      ctx.font = `800 41px ${UI_FONT}`;
       wrapText(title, W / 2, 282, W - 140, 45);
 
       ctx.fillStyle = "#475569";
-      ctx.font = "800 22px system-ui";
+      ctx.font = `700 22px ${UI_FONT}`;
       wrapText(body, W / 2, 392, W - 140, 31);
 
       ctx.fillStyle = "#facc15";
       drawRoundedRect(92, 515, W - 184, 78, 18);
       ctx.fillStyle = "#172033";
-      ctx.font = "900 25px system-ui";
+      ctx.font = `800 25px ${UI_FONT}`;
       ctx.fillText(buttonLabel, W / 2, 564);
       ctx.restore();
     }
@@ -785,17 +950,17 @@
 
       ctx.fillStyle = "#ffffff";
       ctx.textAlign = "center";
-      ctx.font = "900 37px system-ui";
+      ctx.font = `800 37px ${UI_FONT}`;
       wrapText(state.finalMessage, W / 2, 250, W - 82, 46);
 
       ctx.fillStyle = "#fef3c7";
-      ctx.font = "900 25px system-ui";
+      ctx.font = `800 25px ${UI_FONT}`;
       ctx.fillText(`Điểm về đích: ${state.score}`, W / 2, 480);
 
       ctx.fillStyle = "#22c55e";
       drawRoundedRect(98, 565, W - 196, 74, 18);
       ctx.fillStyle = "#ffffff";
-      ctx.font = "900 24px system-ui";
+      ctx.font = `800 24px ${UI_FONT}`;
       ctx.fillText("THI LẠI CHO VUI", W / 2, 612);
       ctx.restore();
     }
@@ -813,6 +978,7 @@
       }
 
       drawBackground();
+      for (const token of state.examTokens) drawExamToken(token);
       for (const goodie of state.goodies) drawGoodie(goodie);
       for (const obstacle of state.obstacles) drawObstacle(obstacle);
       drawCar();
