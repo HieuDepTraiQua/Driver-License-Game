@@ -308,6 +308,7 @@
       playerName: DEFAULT_FRIEND_NAME,
       score: MAX_SCORE,
       timeLeft: EXAM_DURATION,
+      countdown: 0,
       elapsed: 0,
       distance: 0,
       spawnTimer: 0,
@@ -326,6 +327,7 @@
       resultReason: "",
       finalMessage: "",
       fireworkRun: 0,
+      licenseFireworkTimer: 0,
       musicEnabled: true,
     };
 
@@ -502,9 +504,10 @@
     }
 
     function resetGame() {
-      state.screen = "playing";
+      state.screen = "countdown";
       state.score = MAX_SCORE;
       state.timeLeft = EXAM_DURATION;
+      state.countdown = 3;
       state.elapsed = 0;
       state.distance = 0;
       state.spawnTimer = 0.95;
@@ -529,6 +532,7 @@
       state.screen = "start";
       state.score = MAX_SCORE;
       state.timeLeft = EXAM_DURATION;
+      state.countdown = 0;
       state.elapsed = 0;
       state.obstacles = [];
       state.goodies = [];
@@ -537,6 +541,7 @@
       state.examCollected = 0;
       state.particles = [];
       state.finalMessage = "";
+      state.licenseFireworkTimer = 0;
       input.left = false;
       input.right = false;
       nameInput.value = "";
@@ -705,9 +710,33 @@
     }
 
     function update(dt) {
+      if (state.screen === "countdown") {
+        state.countdown -= dt;
+        for (const mark of state.roadMarks) {
+          mark.y += dt * 220;
+          if (mark.y > H + 80) mark.y = -120;
+        }
+
+        if (state.countdown <= 0) {
+          state.screen = "playing";
+          state.countdown = 0;
+          syncNameOverlay();
+        }
+
+        updateParticles(dt);
+        return;
+      }
+
       if (state.screen !== "playing") {
         state.modalShake = Math.max(0, state.modalShake - dt);
         updateParticles(dt);
+        if (state.screen === "license") {
+          state.licenseFireworkTimer -= dt;
+          if (state.licenseFireworkTimer <= 0) {
+            spawnFirework(rand(70, W - 70), rand(70, H * 0.78));
+            state.licenseFireworkTimer = rand(0.18, 0.38);
+          }
+        }
         return;
       }
 
@@ -825,6 +854,18 @@
           color: colors[Math.floor(Math.random() * colors.length)],
           size: rand(2.5, 6),
         });
+      }
+    }
+
+    function openLicenseScreen() {
+      state.screen = "license";
+      state.licenseFireworkTimer = 0;
+      for (let i = 0; i < 12; i++) {
+        setTimeout(() => {
+          if (state.screen === "license") {
+            spawnFirework(rand(70, W - 70), rand(70, H * 0.78));
+          }
+        }, i * 120);
       }
     }
 
@@ -1216,6 +1257,8 @@
       ctx.font = `800 24px ${UI_FONT}`;
       ctx.fillText("THI LẠI", W / 2, 696);
       ctx.restore();
+
+      drawParticles();
     }
 
     function drawLicensePortrait(x, y) {
@@ -1328,6 +1371,29 @@
       return `${year}-${month}-${day}`;
     }
 
+    function drawCountdownOverlay() {
+      const count = Math.ceil(state.countdown);
+      const text = count > 0 ? String(count) : "LÁI!";
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.34)";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+      ctx.shadowColor = "rgba(0,0,0,0.26)";
+      ctx.shadowBlur = 18;
+      drawRoundedRect(94, 320, W - 188, 240, 28);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#172033";
+      ctx.textAlign = "center";
+      ctx.font = `800 ${count > 0 ? 96 : 58}px ${UI_FONT}`;
+      ctx.fillText(text, W / 2, count > 0 ? 435 : 425);
+
+      ctx.fillStyle = "#475569";
+      ctx.font = `700 20px ${UI_FONT}`;
+      wrapText("Hít vào, rồi lại thở ra trước khi bắt đầu", W / 2, 500, W - 240, 27);
+    }
+
     function draw() {
       const sx = state.shake > 0 ? rand(-5, 5) : 0;
       const sy = state.shake > 0 ? rand(-4, 4) : 0;
@@ -1353,6 +1419,10 @@
       drawCar();
       drawParticles();
       drawHud();
+
+      if (state.screen === "countdown") {
+        drawCountdownOverlay();
+      }
 
       ctx.restore();
 
@@ -1389,7 +1459,7 @@
       const inWinLicenseButton = p.x >= 88 && p.x <= W - 88 && p.y >= 555 && p.y <= 633;
       const inLicenseReplayButton = p.x >= 98 && p.x <= W - 98 && p.y >= 650 && p.y <= 722;
       if (state.screen === "gameover" && inButton) backToNameEntry();
-      if (state.screen === "win" && inWinLicenseButton) state.screen = "license";
+      if (state.screen === "win" && inWinLicenseButton) openLicenseScreen();
       if (state.screen === "license" && inLicenseReplayButton) backToNameEntry();
     }
 
@@ -1398,7 +1468,7 @@
       if (key === "arrowleft" || key === "a") input.left = true;
       if (key === "arrowright" || key === "d") input.right = true;
       if ((key === " " || key === "enter") && state.screen === "gameover") backToNameEntry();
-      if ((key === " " || key === "enter") && state.screen === "win") state.screen = "license";
+      if ((key === " " || key === "enter") && state.screen === "win") openLicenseScreen();
       if ((key === " " || key === "enter") && state.screen === "license") backToNameEntry();
     });
 
