@@ -67,17 +67,17 @@
     .sound-btn {
       position: absolute;
       z-index: 5;
-      right: 8px;
-      top: 180px;
-      width: 46px;
-      height: 46px;
+      right: 30px;
+      top: 112px;
+      width: 36px;
+      height: 36px;
       border: 0;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.92);
       color: #172033;
-      font-size: 22px;
+      font-size: 19px;
       font-weight: 800;
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+      box-shadow: 0 5px 12px rgba(15, 23, 42, 0.18);
       cursor: pointer;
       touch-action: manipulation;
     }
@@ -346,7 +346,7 @@
     };
 
     const violationNames = ["Đè vạch", "Quên xi nhan", "Chết máy", "Quá tốc độ"];
-    const luckyNames = ["Tâm lý vững", "Hiếu nhắc bài", "May mắn nè"];
+    const luckyNames = ["May mắn", "Hiếu nhắc bài", "Tự tin"];
 
     for (let i = 0; i < 11; i++) {
       state.roadMarks.push({ y: i * 110 - 70 });
@@ -972,10 +972,10 @@
       ctx.stroke();
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = `800 16px ${UI_FONT}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(`+${goodie.value}`, 0, 1);
+      drawFittedText(goodie.label, 0, -7, 52, 11, 800, "center");
+      drawFittedText(`+${goodie.value}`, 0, 10, 42, 14, 800, "center");
       ctx.restore();
     }
 
