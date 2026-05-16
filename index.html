@@ -414,6 +414,32 @@
       oscillator.stop(startTime + duration + 0.03);
     }
 
+    function playQuickSound(kind) {
+      if (!state.musicEnabled || !ensureMusicContext()) return;
+      if (music.ctx.state === "suspended") {
+        music.ctx.resume();
+      }
+
+      const now = music.ctx.currentTime + 0.01;
+      if (kind === "goodie") {
+        playTone(784, now, 0.07, "triangle", 0.9);
+        playTone(1046, now + 0.06, 0.1, "triangle", 0.75);
+        return;
+      }
+
+      if (kind === "exam") {
+        playTone(659, now, 0.08, "triangle", 0.85);
+        playTone(880, now + 0.07, 0.08, "triangle", 0.85);
+        playTone(1175, now + 0.14, 0.14, "triangle", 0.75);
+        return;
+      }
+
+      if (kind === "hit") {
+        playTone(180, now, 0.14, "sawtooth", 0.85);
+        playTone(120, now + 0.08, 0.18, "square", 0.55);
+      }
+    }
+
     function playResultSound(win) {
       if (!state.musicEnabled) return;
       startMusic();
@@ -668,6 +694,7 @@
 
     function penalize(points) {
       if (car.invincible > 0) return;
+      playQuickSound("hit");
       state.score = Math.max(0, state.score - points);
       state.flash = 0.2;
       state.shake = 0.35;
@@ -678,6 +705,7 @@
     }
 
     function reward(points) {
+      playQuickSound("goodie");
       state.score = Math.min(MAX_SCORE, state.score + points);
       for (let i = 0; i < 18; i++) {
         state.particles.push({
@@ -693,6 +721,7 @@
     }
 
     function collectExamToken(token) {
+      playQuickSound("exam");
       state.examCollected = Math.max(state.examCollected, token.index + 1);
       state.examSpawnTimer = 0.45;
 
@@ -781,6 +810,7 @@
         if (!obstacle.hit && rectsOverlap(carRect, obstacle)) {
           obstacle.hit = true;
           if (obstacle.fatal) {
+            playQuickSound("hit");
             state.score = 0;
             state.flash = 0.5;
             endGame(false, "Dính lỗi Tụt dốc");
@@ -1391,7 +1421,7 @@
 
       ctx.fillStyle = "#475569";
       ctx.font = `700 20px ${UI_FONT}`;
-      wrapText("Hít vào, rồi lại thở ra trước khi bắt đầu", W / 2, 500, W - 240, 27);
+      wrapText("Hít vào, rồi lại thở ra trước khi bắt đầu thi nhé!!!", W / 2, 500, W - 240, 27);
     }
 
     function draw() {
