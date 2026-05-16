@@ -296,6 +296,12 @@
     const soundToggle = document.getElementById("soundToggle");
     const licensePhoto = new Image();
     licensePhoto.src = "image-license.png";
+    const passSound = new Audio("Thi đạt.mp3");
+    const failSound = new Audio("Thi trượt.m4a");
+    passSound.preload = "auto";
+    failSound.preload = "auto";
+    passSound.volume = 1;
+    failSound.volume = 1;
 
     const state = {
       screen: "start",
@@ -329,6 +335,8 @@
       timer: null,
       step: 0,
       started: false,
+      baseVolume: 0.22,
+      duckVolume: 0.07,
     };
 
     const input = {
@@ -382,7 +390,7 @@
 
         music.ctx = new AudioContextClass();
         music.gain = music.ctx.createGain();
-        music.gain.gain.value = 0.22;
+        music.gain.gain.value = music.baseVolume;
         music.gain.connect(music.ctx.destination);
       }
       return true;
@@ -404,30 +412,29 @@
       oscillator.stop(startTime + duration + 0.03);
     }
 
-    function playResultJingle(win) {
-      if (!state.musicEnabled || !ensureMusicContext()) return;
-      if (music.ctx.state === "suspended") {
-        music.ctx.resume();
-      }
+    function playResultSound(win) {
+      if (!state.musicEnabled) return;
+      startMusic();
+      duckMusic(true);
 
-      stopMusic();
-
-      const now = music.ctx.currentTime + 0.03;
-      const notes = win
-        ? [523, 659, 784, 1046, 784, 1046]
-        : [392, 370, 330, 294, 247, 196];
-      const durations = win
-        ? [0.14, 0.14, 0.14, 0.28, 0.14, 0.42]
-        : [0.22, 0.22, 0.28, 0.32, 0.34, 0.55];
-
-      let offset = 0;
-      notes.forEach((note, index) => {
-        playTone(note, now + offset, durations[index], win ? "triangle" : "sine", win ? 1.0 : 0.82);
-        if (win && index % 2 === 0) {
-          playTone(note / 2, now + offset, durations[index] + 0.08, "sine", 0.48);
-        }
-        offset += durations[index] * 0.82;
+      const selectedSound = win ? passSound : failSound;
+      const otherSound = win ? failSound : passSound;
+      otherSound.pause();
+      otherSound.currentTime = 0;
+      selectedSound.pause();
+      selectedSound.currentTime = 0;
+      selectedSound.play().catch(() => {
+        // Trình duyệt có thể chặn audio nếu chưa có tương tác; game vẫn tiếp tục bình thường.
+        duckMusic(false);
       });
+    }
+
+    function duckMusic(shouldDuck) {
+      if (!music.ctx || !music.gain) return;
+      const targetVolume = shouldDuck ? music.duckVolume : music.baseVolume;
+      const now = music.ctx.currentTime;
+      music.gain.gain.cancelScheduledValues(now);
+      music.gain.gain.setTargetAtTime(targetVolume, now, 0.08);
     }
 
     function scheduleMusicStep() {
@@ -461,6 +468,7 @@
     }
 
     function stopMusic() {
+      duckMusic(false);
       if (music.timer) {
         window.clearInterval(music.timer);
         music.timer = null;
@@ -469,12 +477,20 @@
       updateSoundButton();
     }
 
+    function stopResultSounds() {
+      passSound.pause();
+      failSound.pause();
+      passSound.currentTime = 0;
+      failSound.currentTime = 0;
+    }
+
     function toggleMusic() {
       state.musicEnabled = !state.musicEnabled;
       if (state.musicEnabled && state.screen !== "start") {
         startMusic();
       } else {
         stopMusic();
+        stopResultSounds();
       }
       updateSoundButton();
     }
@@ -525,6 +541,7 @@
       input.right = false;
       nameInput.value = "";
       stopMusic();
+      stopResultSounds();
       syncNameOverlay();
       setTimeout(() => nameInput.focus(), 0);
     }
@@ -564,7 +581,7 @@
             ? "Dính lỗi loại trực tiếp rồi! Tụt dốc là giám khảo bấm dừng ngay tại chỗ. Bình tĩnh, đóng tiền thi lại, lần sau giữ chân phanh chắc hơn nha!"
           : "Tạch mất rồi! Điểm số dưới 80. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!";
       syncNameOverlay();
-      playResultJingle(win);
+      playResultSound(win);
 
       if (win) {
         state.fireworkRun += 1;
@@ -1420,6 +1437,15 @@
       event.preventDefault();
       event.stopPropagation();
       toggleMusic();
+    });
+
+    passSound.addEventListener("ended", () => duckMusic(false));
+    failSound.addEventListener("ended", () => duckMusic(false));
+    passSound.addEventListener("pause", () => {
+      if (failSound.paused) duckMusic(false);
+    });
+    failSound.addEventListener("pause", () => {
+      if (passSound.paused) duckMusic(false);
     });
 
     nameForm.addEventListener("submit", (event) => {
