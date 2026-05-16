@@ -269,6 +269,8 @@
     const nameForm = document.getElementById("nameForm");
     const nameInput = document.getElementById("nameInput");
     const nameError = document.getElementById("nameError");
+    const licensePhoto = new Image();
+    licensePhoto.src = "image-license.png";
 
     const state = {
       screen: "start",
@@ -957,12 +959,206 @@
       ctx.font = `800 25px ${UI_FONT}`;
       ctx.fillText(`Điểm về đích: ${state.score}`, W / 2, 480);
 
+      ctx.fillStyle = "#facc15";
+      drawRoundedRect(88, 555, W - 176, 78, 18);
+      ctx.fillStyle = "#172033";
+      ctx.font = `800 25px ${UI_FONT}`;
+      ctx.fillText("NHẬN BẰNG LÁI", W / 2, 604);
+      ctx.restore();
+    }
+
+    function drawLicenseScreen() {
+      drawBackground();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.56)";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      const today = new Date();
+      const expireDate = new Date(today);
+      expireDate.setFullYear(today.getFullYear() + 10);
+      const issueText = formatDate(today);
+      const expireText = formatDate(expireDate);
+      const idText = formatDateForId(today);
+      const cardX = 28;
+      const cardY = 205;
+      const cardW = W - 56;
+      const cardH = 365;
+
+      ctx.shadowColor = "rgba(0,0,0,0.28)";
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = "#ffffff";
+      drawRoundedRect(cardX, cardY, cardW, cardH, 22);
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = "#2478ba";
+      drawRoundedRect(cardX, cardY, cardW, 74, 22);
+      ctx.fillRect(cardX, cardY + 38, cardW, 36);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.font = `800 30px ${UI_FONT}`;
+      ctx.fillText("DRIVER LICENSE", W / 2, cardY + 47);
+
+      ctx.fillStyle = "rgba(37, 120, 186, 0.1)";
+      ctx.font = `800 86px ${UI_FONT}`;
+      ctx.fillText("VN", W / 2, cardY + 230);
+
+      drawLicensePhoto(cardX + 26, cardY + 108, 122, 152, 9);
+
+      ctx.fillStyle = "#111827";
+      ctx.textAlign = "left";
+      ctx.font = `700 17px ${UI_FONT}`;
+      ctx.fillText(`ID: ${idText}`, cardX + 168, cardY + 122);
+
+      ctx.fillStyle = "#0f172a";
+      drawFittedText(state.playerName.toUpperCase(), cardX + 168, cardY + 170, cardW - 190, 25, 800, "left");
+
+      ctx.fillStyle = "#2563eb";
+      ctx.font = `700 13px ${UI_FONT}`;
+      ctx.fillText("DOB", cardX + 168, cardY + 218);
+      ctx.fillText("CLASS", cardX + 168, cardY + 264);
+      ctx.fillText("ISS", cardX + 310, cardY + 218);
+      ctx.fillText("EXP", cardX + 310, cardY + 264);
+
+      ctx.fillStyle = "#111827";
+      ctx.font = `800 15px ${UI_FONT}`;
+      ctx.fillText("15/06/2002", cardX + 214, cardY + 218);
+      ctx.fillText("B", cardX + 226, cardY + 264);
+      ctx.fillText(issueText, cardX + 352, cardY + 218);
+      ctx.fillText(expireText, cardX + 352, cardY + 264);
+
+      ctx.fillStyle = "#e0f2fe";
+      drawRoundedRect(cardX + cardW - 134, cardY + 108, 108, 64, 8);
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillRect(cardX + cardW - 120, cardY + 123, 80, 10);
+      ctx.fillStyle = "#f472b6";
+      ctx.fillRect(cardX + cardW - 120, cardY + 141, 80, 10);
+      ctx.fillStyle = "#a7f3d0";
+      ctx.fillRect(cardX + cardW - 120, cardY + 159, 80, 8);
+
+      drawSignature(cardX + 40, cardY + 302);
+      drawBarcode(cardX + 190, cardY + 278, cardW - 220, 52);
+
+      ctx.fillStyle = "#475569";
+      ctx.textAlign = "center";
+      drawFittedText("Bằng lái danh dự - Vững tay lái, mang bằng về nhà", W / 2, cardY + cardH - 24, cardW - 52, 15, 700, "center");
+
       ctx.fillStyle = "#22c55e";
-      drawRoundedRect(98, 565, W - 196, 74, 18);
+      drawRoundedRect(98, 650, W - 196, 72, 18);
       ctx.fillStyle = "#ffffff";
       ctx.font = `800 24px ${UI_FONT}`;
-      ctx.fillText("THI LẠI CHO VUI", W / 2, 612);
+      ctx.fillText("THI LẠI", W / 2, 696);
       ctx.restore();
+    }
+
+    function drawLicensePortrait(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.fillStyle = "#f3b182";
+      ctx.beginPath();
+      ctx.ellipse(0, -18, 38, 50, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#5b3418";
+      ctx.beginPath();
+      ctx.ellipse(0, -58, 42, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#123447";
+      ctx.beginPath();
+      ctx.moveTo(-66, 84);
+      ctx.lineTo(66, 84);
+      ctx.lineTo(38, 22);
+      ctx.lineTo(-38, 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath();
+      ctx.moveTo(-24, 22);
+      ctx.lineTo(0, 54);
+      ctx.lineTo(24, 22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#dc2626";
+      ctx.beginPath();
+      ctx.moveTo(0, 38);
+      ctx.lineTo(13, 58);
+      ctx.lineTo(0, 82);
+      ctx.lineTo(-13, 58);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawLicensePhoto(x, y, width, height, radius) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      ctx.clip();
+
+      if (licensePhoto.complete && licensePhoto.naturalWidth > 0) {
+        const imageRatio = licensePhoto.naturalWidth / licensePhoto.naturalHeight;
+        const boxRatio = width / height;
+        let sx = 0;
+        let sy = 0;
+        let sw = licensePhoto.naturalWidth;
+        let sh = licensePhoto.naturalHeight;
+
+        if (imageRatio > boxRatio) {
+          sw = licensePhoto.naturalHeight * boxRatio;
+          sx = (licensePhoto.naturalWidth - sw) / 2;
+        } else {
+          sh = licensePhoto.naturalWidth / boxRatio;
+          sy = (licensePhoto.naturalHeight - sh) / 2;
+        }
+
+        ctx.drawImage(licensePhoto, sx, sy, sw, sh, x, y, width, height);
+      } else {
+        ctx.fillStyle = "#cfe8ff";
+        ctx.fillRect(x, y, width, height);
+        drawLicensePortrait(x + width / 2, y + height / 2);
+      }
+
+      ctx.restore();
+    }
+
+    function drawSignature(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 18);
+      ctx.bezierCurveTo(22, -12, 34, 30, 58, 4);
+      ctx.bezierCurveTo(72, -11, 92, 22, 124, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBarcode(x, y, width, height) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, y, width, height);
+      ctx.fillStyle = "#111827";
+      let cursor = x + 8;
+      let seed = state.playerName.length * 17 + state.score;
+      while (cursor < x + width - 8) {
+        seed = (seed * 37 + 11) % 97;
+        const barWidth = 2 + (seed % 4);
+        ctx.fillRect(cursor, y + 8, barWidth, height - 16);
+        cursor += barWidth + 2 + (seed % 3);
+      }
+    }
+
+    function formatDate(date) {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    }
+
+    function formatDateForId(date) {
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${year}-${month}-${day}`;
     }
 
     function draw() {
@@ -973,6 +1169,12 @@
 
       if (state.screen === "win") {
         drawWinScreen();
+        ctx.restore();
+        return;
+      }
+
+      if (state.screen === "license") {
+        drawLicenseScreen();
         ctx.restore();
         return;
       }
@@ -1017,9 +1219,11 @@
     function handleAction(event) {
       const p = canvasPointFromEvent(event);
       const inButton = p.x >= 92 && p.x <= W - 92 && p.y >= 515 && p.y <= 640;
-      const inWinButton = p.x >= 98 && p.x <= W - 98 && p.y >= 565 && p.y <= 650;
+      const inWinLicenseButton = p.x >= 88 && p.x <= W - 88 && p.y >= 555 && p.y <= 633;
+      const inLicenseReplayButton = p.x >= 98 && p.x <= W - 98 && p.y >= 650 && p.y <= 722;
       if (state.screen === "gameover" && inButton) backToNameEntry();
-      if (state.screen === "win" && inWinButton) backToNameEntry();
+      if (state.screen === "win" && inWinLicenseButton) state.screen = "license";
+      if (state.screen === "license" && inLicenseReplayButton) backToNameEntry();
     }
 
     window.addEventListener("keydown", (event) => {
@@ -1027,7 +1231,8 @@
       if (key === "arrowleft" || key === "a") input.left = true;
       if (key === "arrowright" || key === "d") input.right = true;
       if ((key === " " || key === "enter") && state.screen === "gameover") backToNameEntry();
-      if ((key === " " || key === "enter") && state.screen === "win") backToNameEntry();
+      if ((key === " " || key === "enter") && state.screen === "win") state.screen = "license";
+      if ((key === " " || key === "enter") && state.screen === "license") backToNameEntry();
     });
 
     window.addEventListener("keyup", (event) => {
