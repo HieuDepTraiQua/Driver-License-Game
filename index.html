@@ -64,6 +64,29 @@
       background: var(--bg);
     }
 
+    .sound-btn {
+      position: absolute;
+      z-index: 5;
+      right: 8px;
+      top: 180px;
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+      color: #172033;
+      font-size: 22px;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.22);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .sound-btn.is-muted {
+      background: rgba(255, 255, 255, 0.72);
+      color: #64748b;
+    }
+
     .name-overlay {
       position: absolute;
       inset: 0;
@@ -215,6 +238,7 @@
   <main class="game-shell" aria-label="Game sát hạch lái xe">
     <div class="canvas-wrap">
       <canvas id="gameCanvas" width="540" height="960"></canvas>
+      <button class="sound-btn" id="soundToggle" type="button" aria-label="Bật tắt nhạc nền">♪</button>
       <section class="name-overlay" id="nameOverlay" aria-label="Nhập tên trước khi thi">
         <form class="name-panel" id="nameForm">
           <h2>CHƠI ĐỂ ĐỖ SÁT HẠCH</h2>
@@ -269,6 +293,7 @@
     const nameForm = document.getElementById("nameForm");
     const nameInput = document.getElementById("nameInput");
     const nameError = document.getElementById("nameError");
+    const soundToggle = document.getElementById("soundToggle");
     const licensePhoto = new Image();
     licensePhoto.src = "image-license.png";
 
@@ -295,6 +320,15 @@
       resultReason: "",
       finalMessage: "",
       fireworkRun: 0,
+      musicEnabled: true,
+    };
+
+    const music = {
+      ctx: null,
+      gain: null,
+      timer: null,
+      step: 0,
+      started: false,
     };
 
     const input = {
@@ -341,6 +375,116 @@
       ctx.fillText(text, x, y);
     }
 
+    function ensureMusicContext() {
+      if (!music.ctx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return false;
+
+        music.ctx = new AudioContextClass();
+        music.gain = music.ctx.createGain();
+        music.gain.gain.value = 0.22;
+        music.gain.connect(music.ctx.destination);
+      }
+      return true;
+    }
+
+    function playTone(frequency, startTime, duration, type = "triangle", volume = 0.8) {
+      if (!music.ctx || !music.gain) return;
+
+      const oscillator = music.ctx.createOscillator();
+      const gainNode = music.ctx.createGain();
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      gainNode.gain.setValueAtTime(0.0001, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(volume, startTime + 0.018);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      oscillator.connect(gainNode);
+      gainNode.connect(music.gain);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + duration + 0.03);
+    }
+
+    function playResultJingle(win) {
+      if (!state.musicEnabled || !ensureMusicContext()) return;
+      if (music.ctx.state === "suspended") {
+        music.ctx.resume();
+      }
+
+      stopMusic();
+
+      const now = music.ctx.currentTime + 0.03;
+      const notes = win
+        ? [523, 659, 784, 1046, 784, 1046]
+        : [392, 370, 330, 294, 247, 196];
+      const durations = win
+        ? [0.14, 0.14, 0.14, 0.28, 0.14, 0.42]
+        : [0.22, 0.22, 0.28, 0.32, 0.34, 0.55];
+
+      let offset = 0;
+      notes.forEach((note, index) => {
+        playTone(note, now + offset, durations[index], win ? "triangle" : "sine", win ? 1.0 : 0.82);
+        if (win && index % 2 === 0) {
+          playTone(note / 2, now + offset, durations[index] + 0.08, "sine", 0.48);
+        }
+        offset += durations[index] * 0.82;
+      });
+    }
+
+    function scheduleMusicStep() {
+      if (!music.ctx || !state.musicEnabled || !music.started) return;
+
+      const melody = [392, 440, 494, 587, 494, 440, 392, 330, 392, 494, 523, 659, 587, 494, 440, 392];
+      const bass = [196, 196, 247, 247, 220, 220, 165, 165];
+      const now = music.ctx.currentTime;
+      const note = melody[music.step % melody.length];
+
+      playTone(note, now, 0.16, "triangle", 1.0);
+      if (music.step % 2 === 0) {
+        playTone(bass[Math.floor(music.step / 2) % bass.length], now, 0.22, "sine", 0.78);
+      }
+
+      music.step += 1;
+    }
+
+    async function startMusic() {
+      if (!state.musicEnabled || document.hidden || !ensureMusicContext()) return;
+
+      if (music.ctx.state === "suspended") {
+        await music.ctx.resume();
+      }
+
+      if (music.started) return;
+      music.started = true;
+      scheduleMusicStep();
+      music.timer = window.setInterval(scheduleMusicStep, 210);
+      updateSoundButton();
+    }
+
+    function stopMusic() {
+      if (music.timer) {
+        window.clearInterval(music.timer);
+        music.timer = null;
+      }
+      music.started = false;
+      updateSoundButton();
+    }
+
+    function toggleMusic() {
+      state.musicEnabled = !state.musicEnabled;
+      if (state.musicEnabled && state.screen !== "start") {
+        startMusic();
+      } else {
+        stopMusic();
+      }
+      updateSoundButton();
+    }
+
+    function updateSoundButton() {
+      soundToggle.textContent = state.musicEnabled ? "♪" : "×";
+      soundToggle.classList.toggle("is-muted", !state.musicEnabled);
+      soundToggle.setAttribute("aria-label", state.musicEnabled ? "Tắt nhạc nền" : "Bật nhạc nền");
+    }
+
     function resetGame() {
       state.screen = "playing";
       state.score = MAX_SCORE;
@@ -380,6 +524,7 @@
       input.left = false;
       input.right = false;
       nameInput.value = "";
+      stopMusic();
       syncNameOverlay();
       setTimeout(() => nameInput.focus(), 0);
     }
@@ -399,6 +544,7 @@
       nameInput.classList.remove("is-invalid");
       state.playerName = cleanedName;
       resetGame();
+      startMusic();
     }
 
     function syncNameOverlay() {
@@ -416,6 +562,7 @@
           ? `Hết giờ rồi! Bạn mới hoàn thành ${state.examCollected}/11 bài sa hình. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!`
           : "Tạch mất rồi! Điểm số dưới 80. Bình tĩnh, đóng tiền thi lại, chúc bạn may mắn lần sau!";
       syncNameOverlay();
+      playResultJingle(win);
 
       if (win) {
         state.fireworkRun += 1;
@@ -768,12 +915,12 @@
         ctx.globalAlpha = 0.55;
       }
 
-      ctx.fillStyle = "#e11d48";
+      ctx.fillStyle = "#0284c7";
       drawRoundedRect(-car.width / 2, -car.height / 2, car.width, car.height, 18);
 
-      ctx.fillStyle = "#fecdd3";
+      ctx.fillStyle = "#bae6fd";
       drawRoundedRect(-22, -36, 44, 35, 11);
-      ctx.fillStyle = "#be123c";
+      ctx.fillStyle = "#0369a1";
       drawRoundedRect(-24, 8, 48, 34, 13);
 
       ctx.fillStyle = "#111827";
@@ -785,10 +932,6 @@
       ctx.fillStyle = "#fef3c7";
       ctx.fillRect(-24, -57, 14, 8);
       ctx.fillRect(10, -57, 14, 8);
-      ctx.fillStyle = "#ffffff";
-      ctx.font = `800 16px ${UI_FONT}`;
-      ctx.textAlign = "center";
-      ctx.fillText("THI", 0, 54);
       ctx.restore();
     }
 
@@ -983,6 +1126,13 @@
       const cardY = 205;
       const cardW = W - 56;
       const cardH = 365;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "rgba(0,0,0,0.32)";
+      ctx.shadowBlur = 10;
+      drawFittedText("Chúc em hâm thi tốt nhaaa", W / 2, cardY - 30, cardW - 30, 26, 800, "center");
+      ctx.shadowBlur = 0;
 
       ctx.shadowColor = "rgba(0,0,0,0.28)";
       ctx.shadowBlur = 24;
@@ -1266,6 +1416,12 @@
     bindTouchButton(leftBtn, "left");
     bindTouchButton(rightBtn, "right");
 
+    soundToggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleMusic();
+    });
+
     nameForm.addEventListener("submit", (event) => {
       event.preventDefault();
       startExamFromName();
@@ -1283,6 +1439,15 @@
       handleAction(event);
     }, { passive: true });
 
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopMusic();
+      } else if (state.musicEnabled && state.screen !== "start") {
+        startMusic();
+      }
+    });
+
+    updateSoundButton();
     requestAnimationFrame(gameLoop);
   </script>
 </body>
